@@ -472,13 +472,22 @@ $parent_dir = dirname($current_path);
 $is_root = ($current_path === realpath($base_path));
 $items = scandir($current_path);
 
-// Determine active tab
+// ======================
+// FIXED TAB LOGIC - This was the main issue
+// ======================
 $active_tab = 'fileManager';
-if (isset($_GET['db']) || isset($_GET['table']) || $dbConnected) {
+
+// Only switch to database tab if we're explicitly doing database operations
+if (isset($_GET['db']) || isset($_GET['table']) || isset($_GET['edit_row'])) {
     $active_tab = 'database';
-}
-if ($editor_mode) {
+} 
+// Editor mode takes highest priority
+elseif ($editor_mode) {
     $active_tab = 'editor';
+}
+// If we have a path parameter or no database parameters, we're in file manager
+elseif (isset($_GET['path']) || (!isset($_GET['db']) && !isset($_GET['table']) && !isset($_GET['edit_row']))) {
+    $active_tab = 'fileManager';
 }
 
 // Check if we're in edit mode for a specific row
@@ -503,17 +512,19 @@ if ($edit_row_mode && $currentDatabase && $currentTable) {
     }
 }
 
-// Function to generate URL with all parameters
+// Function to generate URL with all parameters - FIXED VERSION
 function generateUrl($params = []) {
     global $current_path, $currentDatabase, $currentTable;
     $baseParams = ['path' => $current_path];
     
-    // Preserve database parameters if they exist
-    if ($currentDatabase) {
-        $baseParams['db'] = $currentDatabase;
-    }
-    if ($currentTable) {
-        $baseParams['table'] = $currentTable;
+    // Only preserve database parameters if we're explicitly in database mode
+    if (isset($_GET['db']) || isset($_GET['table']) || isset($_GET['edit_row'])) {
+        if ($currentDatabase) {
+            $baseParams['db'] = $currentDatabase;
+        }
+        if ($currentTable) {
+            $baseParams['table'] = $currentTable;
+        }
     }
     
     $allParams = array_merge($baseParams, $params);
@@ -738,12 +749,12 @@ function generateUrl($params = []) {
         <!-- Main Navigation Tabs -->
         <ul class="nav nav-tabs" id="mainTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $active_tab === 'fileManager' && !$edit_row_mode ? 'active' : '' ?>" id="fileManager-tab" data-bs-toggle="tab" data-bs-target="#fileManager" type="button" role="tab">
+                <button class="nav-link <?= $active_tab === 'fileManager' ? 'active' : '' ?>" id="fileManager-tab" data-bs-toggle="tab" data-bs-target="#fileManager" type="button" role="tab">
                     <i class="fas fa-folder"></i> File Manager
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link <?= ($active_tab === 'database' || $edit_row_mode) ? 'active' : '' ?>" id="database-tab" data-bs-toggle="tab" data-bs-target="#database" type="button" role="tab">
+                <button class="nav-link <?= $active_tab === 'database' ? 'active' : '' ?>" id="database-tab" data-bs-toggle="tab" data-bs-target="#database" type="button" role="tab">
                     <i class="fas fa-database"></i> Database Manager
                 </button>
             </li>
@@ -758,7 +769,7 @@ function generateUrl($params = []) {
 
         <div class="tab-content" id="mainTabsContent">
             <!-- File Manager Tab -->
-            <div class="tab-pane fade <?= $active_tab === 'fileManager' && !$edit_row_mode ? 'show active' : '' ?>" id="fileManager" role="tabpanel">
+            <div class="tab-pane fade <?= $active_tab === 'fileManager' ? 'show active' : '' ?>" id="fileManager" role="tabpanel">
                 <!-- File Manager Content Here -->
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 class="neon-text"><i class="fas fa-folder"></i> Advanced File Manager</h2>
@@ -937,7 +948,7 @@ function generateUrl($params = []) {
             </div>
 
             <!-- Database Browser Tab -->
-            <div class="tab-pane fade <?= ($active_tab === 'database' || $edit_row_mode) ? 'show active' : '' ?>" id="database" role="tabpanel">
+            <div class="tab-pane fade <?= $active_tab === 'database' ? 'show active' : '' ?>" id="database" role="tabpanel">
                 <div id="databaseContent">
                     <?php if (!$dbConnected): ?>
                         <!-- Database Connection Form -->
